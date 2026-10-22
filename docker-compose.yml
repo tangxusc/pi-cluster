@@ -1,0 +1,41 @@
+name: pi-cluster
+
+x-pi-agent: &pi-agent
+  image: pi-agent:${PI_VERSION:-0.85.1}
+  build:
+    context: .
+    args:
+      PI_VERSION: ${PI_VERSION:-0.85.1}
+  command: ["sleep", "infinity"]
+  working_dir: /workspace
+  stdin_open: true
+  tty: true
+  restart: unless-stopped
+  environment:
+    HOME: /root
+    PI_CODING_AGENT_DIR: /root/.pi/agent
+    PI_TELEMETRY: "0"
+    # 只有密钥在运行时注入；baseUrl / model 由 make config 写进 models.json
+    DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  volumes:
+    # 共享上下文存储：sessions / auth / settings / extensions / npm 全在 ~/.pi 下
+    - pi-home:/root/.pi
+    # 共享工作区：pi 的 session 目录按 cwd 归档，两个容器必须用同一个 cwd 才能看到彼此的会话
+    - pi-workspace:/workspace
+
+services:
+  pi-a:
+    <<: *pi-agent
+    container_name: pi-a
+    hostname: pi-a
+
+  pi-b:
+    <<: *pi-agent
+    container_name: pi-b
+    hostname: pi-b
+
+volumes:
+  pi-home:
+    name: pi-agent-home
+  pi-workspace:
+    name: pi-agent-workspace
